@@ -7,9 +7,80 @@
     <script src="https://cdn.mxpnl.com/libs/mixpanel-platform/build/mixpanel-platform.v0.latest.min.js"></script>
   </head>
   <body class="mixpanel-platform-body">
-    <h1>Hello, World!</h1>
+    <div class="mixpanel-platform-section">
+      <div id="unitSelect" style="float: left;"></div>
+      <div id="typeSelect" style="float: left;"></div>
+      <div id="dateSelect" style="float: right;"></div>
+      <div style="clear: both;"></div>
+      <div id="graph"></div>
+    </div>
+    <div id="table"></div>
     <script>
-      // Run queries and display results here
+      
+      var dateSelect  = $('#dateSelect').MPDatepicker();
+      var eventGraph  = $('#graph').MPChart({chartType: 'line'});
+      var eventTable  = $('#table').MPTable({
+        showPercentages: true,
+        firstColHeader: 'Event'
+      });
+      
+      var options = {
+          items: [
+            {label: 'Days', value: 'day'},
+            {label: 'Weeks', value: 'week'},
+            {label: 'Months', value: 'month'}
+          ]
+        };
+        
+        var unitPicker = $('#unitSelect').MPSelect(options);
+        
+         var options2 = {
+          items: [
+            {label: 'Total', value: 'general'},
+            {label: 'Unique', value: 'unique'},
+            {label: 'Average', value: 'average'}
+          ]
+        };
+        
+        var typePicker = $('#typeSelect').MPSelect(options2);
+
+      var runQuery = function() {
+        var dateRange = dateSelect.MPDatepicker('value');
+            type = typePicker.MPSelect('value'),
+            unit = unitPicker.MPSelect('value');
+        
+        MP.api.query('/api/2.0/events/names/', {'type': type, 'unit': unit}).done(function(json) {
+          console.log('got json\n', json);
+          var keys = Object.keys(json);
+          var events = '[';
+          for(i=0; i<keys.length; i++) {
+            console.log(json[keys[i]]);
+            console.log(events);
+            if(i==keys.length-1) {
+              events = events + '"' + String(json[keys[i]]) + '"]';
+            } else {
+              events = events + '"' + String(json[keys[i]]) + '", ';
+            }
+          }
+          console.log(events);
+          setTimeout(createReport(events, dateRange, unit, type), 5000);
+          });
+      };
+      
+      var createReport = function(events, dateRange, unit, type) {
+        MP.api.query('/api/2.0/events/', {event: events, to: dateRange.to.toISOString().substring(0, 10), from: dateRange.from.toISOString().substring(0, 10), unit: unit, type: type}).done(function(results) {
+          console.log(results);
+          eventGraph.MPChart('setData', results['data']['values']);
+          eventTable.MPTable('setData', results['data']['values']);
+        });
+      }
+      
+      unitPicker.on('change', runQuery);
+      typePicker.on('change', runQuery);
+      dateSelect.on('change', runQuery);
+      
+      runQuery();
     </script>
   </body>
 </html>
+
